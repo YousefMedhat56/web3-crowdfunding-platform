@@ -36,6 +36,7 @@ contract CrowdFunding {
 
     event ContributionReceived(uint256 indexed campaign_id, address indexed contributor, uint256 amount);
     event FundsWithdrawn(uint256 indexed campaign_id, address indexed owner, uint256 amount);
+    event RefundIssued(uint256 indexed campaign_id, address indexed contributor, uint256 amount);
 
     /**
      * ERRORS
@@ -49,7 +50,10 @@ contract CrowdFunding {
     error CrowdFunding__NotCampaignOwner();
     error CrowdFunding__WithdrawFailed();
     error CrowdFunding__CampaignGoalNotReached();
+    error CrowdFunding__NoRefundCampaignGoalReached();
     error CrowdFunding__FundsAlreadyWithdrawn();
+    error CrowdFunding__NoAvailableRefund();
+    error CrowdFunding__RefundFailed();
 
     /**
      * Modifiers
@@ -168,10 +172,29 @@ contract CrowdFunding {
         if (campaign.raised < campaign.goal) revert CrowdFunding__CampaignGoalNotReached();
         if (campaign.isWithdrawn) revert CrowdFunding__FundsAlreadyWithdrawn();
 
+        campaign.isWithdrawn = true;
         (bool success,) = campaign.owner.call{value: campaign.raised}("");
         if (!success) revert CrowdFunding__WithdrawFailed();
 
-        campaign.isWithdrawn = true;
         emit FundsWithdrawn(campaign_id, msg.sender, campaign.raised);
+    }
+
+    /**
+     * @notice Request a refund
+     * @param campaign_id Campaign id
+     * @dev The campaign deadline must be passed
+     * @dev The campaign goal must not be reached
+     */
+    function requestRefund(uint256 campaign_id) external campaignExists(campaign_id) afterDeadline(campaign_id) {
+        Campaign storage campaign = s_campaigns[campaign_id];
+        uint256 refundAmount = campaign.contributors[msg.sender];
+
+        if (campaign.raised >= campaign.goal) revert CrowdFunding__NoRefundCampaignGoalReached();
+        if (refundAmount == 0) revert CrowdFunding__NoAvailableRefund();
+
+        campaign.contributors[msg.sender] = 0;
+        (bool success,) = msg.sender.call{value: refundAmount}("");
+        if (!success) revert CrowdFunding__RefundFailed();
+        emit RefundIssued(campaign_id, msg.sender, refundAmount);
     }
 }
