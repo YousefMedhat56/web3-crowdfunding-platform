@@ -19,7 +19,7 @@ contract CrowdFunding {
     /**
      * STATE VARIABLES
      */
-    uint256 campaignCount = 0;
+    uint256 public campaignCount = 0;
     mapping(uint256 campaign_id => Campaign) public s_campaigns;
 
     /**
