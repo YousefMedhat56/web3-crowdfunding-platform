@@ -197,4 +197,17 @@ contract CrowdFunding {
         if (!success) revert CrowdFunding__RefundFailed();
         emit RefundIssued(campaign_id, msg.sender, refundAmount);
     }
+
+    function getCampaignRaised(uint256 campaign_id) public view campaignExists(campaign_id) returns (uint256) {
+        return s_campaigns[campaign_id].raised;
+    }
+
+    function getContribution(uint256 campaign_id, address contributer)
+        public
+        view
+        campaignExists(campaign_id)
+        returns (uint256)
+    {
+        return s_campaigns[campaign_id].contributors[contributer];
+    }
 }
