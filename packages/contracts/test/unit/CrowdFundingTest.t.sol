@@ -17,7 +17,7 @@ contract CrowdFundingTest is Test {
 
     address constant CONTRIBUTOR_1 = address(0x2);
     address constant CONTRIBUTOR_2 = address(0x3);
-    uint256 constant CONTRIBUTOR_BALANCE = 6 ether;
+    uint256 constant CONTRIBUTOR_BALANCE = 5 ether;
 
     function setUp() public {
         deployer = new DeployCrowdFunding();
@@ -158,6 +158,48 @@ contract CrowdFundingTest is Test {
         vm.expectRevert(CrowdFunding.CrowdFunding__FundsAlreadyWithdrawn.selector);
         crowdFunding.withdrawFunds(0);
 
+        vm.stopPrank();
+    }
+
+    // ##########################
+    // TEST requestRefund
+    // ##########################
+    function testRevertIfGoalReached() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+        contributeToCampaign(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE, 0);
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.prank(CONTRIBUTOR_1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NoRefundCampaignGoalReached.selector);
+        crowdFunding.requestRefund(0);
+    }
+
+    function testRevertIfNotAContributor() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE, 0);
+
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.prank(CONTRIBUTOR_1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NoAvailableRefund.selector);
+        crowdFunding.requestRefund(0);
+    }
+
+    function testRequestRefundSuccess() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.prank(CONTRIBUTOR_1);
+        crowdFunding.requestRefund(0);
+        assertEq(CONTRIBUTOR_1.balance, CONTRIBUTOR_BALANCE);
+        assertEq(crowdFunding.getContribution(0, CONTRIBUTOR_1), 0);
+    }
+
+    function testRevertIfAlreadyRefunded() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.startPrank(CONTRIBUTOR_1);
+        crowdFunding.requestRefund(0); // ALREADY GET THE REFUND
+
+        vm.expectRevert(CrowdFunding.CrowdFunding__NoAvailableRefund.selector);
+        crowdFunding.requestRefund(0); //REQUESTING REFUND AGAIN
         vm.stopPrank();
     }
 }
