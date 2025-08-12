@@ -17,12 +17,14 @@ contract CrowdFundingTest is Test {
 
     address constant CONTRIBUTOR_1 = address(0x2);
     address constant CONTRIBUTOR_2 = address(0x3);
-    uint256 constant CONTRIBUTOR_BALANCE = 2 ether;
+    uint256 constant CONTRIBUTOR_BALANCE = 6 ether;
 
     function setUp() public {
         deployer = new DeployCrowdFunding();
         crowdFunding = deployer.run();
         CAMPAIGN_DEADLINE = block.timestamp + 1 days;
+        vm.deal(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE);
+        vm.deal(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE);
     }
 
     // ##########################
@@ -67,14 +69,13 @@ contract CrowdFundingTest is Test {
     // TEST contribute
     // ##########################
     modifier createCampaign() {
+        vm.prank(CAMPAIGN_OWNER);
         crowdFunding.createCampaign(CAMPAIGN_NAME, CAMPAIGN_DESC, CAMPAIGN_GOAL, CAMPAIGN_DEADLINE);
-        vm.deal(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE);
-        vm.deal(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE);
+
         _;
     }
 
     function testRevertIfCampaignDoesNotExist() public {
-        vm.deal(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE);
         vm.prank(CONTRIBUTOR_1);
         vm.expectRevert(CrowdFunding.CrowdFunding__CampaignDoesNotExist.selector);
         crowdFunding.contribute{value: 1 ether}(0);
@@ -102,5 +103,61 @@ contract CrowdFundingTest is Test {
         assertEq(crowdFunding.getContribution(0, CONTRIBUTOR_1), 1 ether);
         assertEq(crowdFunding.getContribution(0, CONTRIBUTOR_2), 2 ether);
         assertEq(crowdFunding.getCampaignRaised(0), 3 ether);
+    }
+
+    // ##########################
+    // TEST withdrawFunds
+    // ##########################
+
+    function contributeToCampaign(address contributor, uint256 amount, uint256 campaign_id) public {
+        vm.prank(contributor);
+        crowdFunding.contribute{value: amount}(campaign_id);
+    }
+
+    function testRevertIfNotOwner() public createCampaign {
+        address USER = makeAddr("not owner");
+        vm.prank(USER);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NotCampaignOwner.selector);
+        crowdFunding.withdrawFunds(0);
+    }
+
+    function testRevertIfBeforeDeadline() public createCampaign {
+        vm.prank(CAMPAIGN_OWNER);
+        vm.expectRevert(CrowdFunding.CrowdFunding__CampaignNotFinished.selector);
+        crowdFunding.withdrawFunds(0);
+    }
+
+    function testRevertIfGoalNotReached() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.prank(CAMPAIGN_OWNER);
+        vm.expectRevert(CrowdFunding.CrowdFunding__CampaignGoalNotReached.selector);
+        crowdFunding.withdrawFunds(0);
+    }
+
+    function testWithdrawFundsSuccess() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+        contributeToCampaign(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE, 0);
+
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.prank(CAMPAIGN_OWNER);
+
+        crowdFunding.withdrawFunds(0);
+        assertEq(CAMPAIGN_OWNER.balance, 2 * CONTRIBUTOR_BALANCE);
+        assertEq(crowdFunding.getCampaignWithdrawnStatus(0), true);
+    }
+
+    function testRevertIfAlreadyWithdrawn() public createCampaign {
+        contributeToCampaign(CONTRIBUTOR_1, CONTRIBUTOR_BALANCE, 0);
+        contributeToCampaign(CONTRIBUTOR_2, CONTRIBUTOR_BALANCE, 0);
+        vm.warp(CAMPAIGN_DEADLINE + 1);
+        vm.startPrank(CAMPAIGN_OWNER);
+
+        crowdFunding.withdrawFunds(0);
+
+        vm.expectRevert(CrowdFunding.CrowdFunding__FundsAlreadyWithdrawn.selector);
+        crowdFunding.withdrawFunds(0);
+
+        vm.stopPrank();
     }
 }

@@ -198,6 +198,10 @@ contract CrowdFunding {
         emit RefundIssued(campaign_id, msg.sender, refundAmount);
     }
 
+    function getCampaignWithdrawnStatus(uint256 campaign_id) public view campaignExists(campaign_id) returns (bool) {
+        return s_campaigns[campaign_id].isWithdrawn;
+    }
+
     function getCampaignRaised(uint256 campaign_id) public view campaignExists(campaign_id) returns (uint256) {
         return s_campaigns[campaign_id].raised;
     }
