@@ -13,7 +13,7 @@ contract CrowdFunding {
         uint256 raised;
         uint256 deadline;
         bool isWithdrawn;
-        mapping(address contributer => uint256 amount) contributors;
+        mapping(address contributor => uint256 amount) contributors;
     }
 
     /**
@@ -34,12 +34,16 @@ contract CrowdFunding {
         uint256 deadline
     );
 
+    event ContributionReceived(uint256 indexed campaign_id, address indexed contributor, uint256 amount);
+
     /**
      * ERRORS
      */
     error CrowdFunding__CannotBeZero();
     error CrowdFunding__InvalidDeadlineDate();
     error CrowdFunding__EmptyString();
+    error CrowdFunding__CampaignDoesNotExist();
+    error CrowdFunding__CampaignFinished();
 
     /**
      * Modifiers
@@ -58,11 +62,32 @@ contract CrowdFunding {
         _;
     }
 
+    modifier campaignExists(uint256 campaign_id) {
+        if (campaign_id >= campaignCount) {
+            revert CrowdFunding__CampaignDoesNotExist();
+        }
+        _;
+    }
+
+    modifier beforeDeadline(uint256 campaign_id) {
+        if (s_campaigns[campaign_id].deadline < block.timestamp) {
+            revert CrowdFunding__CampaignFinished();
+        }
+        _;
+    }
+
     /**
      * FUNCTIONS
      */
     constructor() {}
 
+    /**
+     * @notice Create a new campaign
+     * @param _name campaign name
+     * @param _description campaign description
+     * @param _goal campaign goal
+     * @param _deadline campaign deadline
+     */
     function createCampaign(string memory _name, string memory _description, uint256 _goal, uint256 _deadline)
         external
         isNotEmptyString(_name)
@@ -86,5 +111,22 @@ contract CrowdFunding {
         newCampaign.isWithdrawn = false;
         emit CampaignCreated(campaignCount, msg.sender, _name, _description, _goal, _deadline);
         campaignCount++;
+    }
+
+    /**
+     * @notice Contribute to a campaign
+     * @param campaign_id Campaign id
+     */
+    function contribute(uint256 campaign_id)
+        external
+        payable
+        campaignExists(campaign_id)
+        beforeDeadline(campaign_id)
+        moreThanZero(msg.value)
+    {
+        Campaign storage campaign = s_campaigns[campaign_id];
+        campaign.contributors[msg.sender] += msg.value;
+        campaign.raised += msg.value;
+        emit ContributionReceived(campaign_id, msg.sender, msg.value);
     }
 }
