@@ -18,4 +18,20 @@ contract InvariantTest is StdInvariant, Test {
         handler = new Handler(crowdFunding);
         targetContract(address(handler));
     }
+
+    /**
+     * @notice Checks that the contract balance is equal to the sum of all raised funds of non withdrawn campaigns
+     */
+    function invariant_ContractBalanceShouldEqualAllNonWithdrawnCampaignsRaised() public view {
+        uint256 totalRaised = 0;
+        for (uint256 i = 0; i < crowdFunding.campaignCount(); i++) {
+            // check if the campaign is not withdrawn
+            if (crowdFunding.getCampaignWithdrawnStatus(i) == false) {
+                totalRaised += crowdFunding.getCampaignRaised(i);
+            }
+        }
+        console.log("Contract Balance", address(crowdFunding).balance);
+        console.log("Total Raised", totalRaised);
+        assertEq(address(crowdFunding).balance, totalRaised);
+    }
 }
