@@ -24,58 +24,95 @@ contract Handler is Test {
         MIN_CAMPAIGN_DEADLINE = block.timestamp + 1 days;
         MAX_CAMPAIGN_DEADLINE = block.timestamp + 100 days;
         campaignOwners = generateCampaignOwners();
-        contributors = generateContibutors();
+        contributors = generateContributors();
     }
 
     function createCampaign(uint256 _campaignOwnerSeed, uint256 _goal, uint256 _deadline) public {
-        address owner = getCamapaignOwnerFromSeed(_campaignOwnerSeed);
+        address owner = getCampaignOwnerFromSeed(_campaignOwnerSeed);
 
         _goal = bound(_goal, MIN_CAMPAIGN_GOAL, MAX_CAMPAIGN_GOAL);
         _deadline = bound(_deadline, MIN_CAMPAIGN_DEADLINE, MAX_CAMPAIGN_DEADLINE);
 
+        vm.warp(MIN_CAMPAIGN_DEADLINE - 1);
         vm.prank(owner);
         crowdFunding.createCampaign(CAMPAIGN_NAME, CAMPAIGN_DESCRIPTION, _goal, _deadline);
     }
 
-    function contribute(uint256 _contributorSeed, uint256 _campaignIdSeed, uint256 _amount) public payable {
+    modifier checkCampaignsCount() {
         if (crowdFunding.campaignCount() == 0) {
             return;
         }
+        _;
+    }
+
+    function contribute(uint256 _contributorSeed, uint256 _campaignIdSeed, uint256 _amount)
+        public
+        payable
+        checkCampaignsCount
+    {
         address contributor = getContributorFromSeed(_contributorSeed);
         uint256 campaignId = getCampaignIdFromSeed(_campaignIdSeed);
+        bool isWithdrawn = crowdFunding.getCampaignWithdrawnStatus(campaignId);
+
         _amount = bound(_amount, MIN_CONTRIBUTION_AMOUNT, MAX_CONTRIBUTION_AMOUNT);
+
+        if (isWithdrawn) {
+            return;
+        }
 
         if (contributor.balance < _amount) {
             return;
         }
+        vm.warp(MIN_CAMPAIGN_DEADLINE - 1);
         vm.prank(contributor);
         crowdFunding.contribute{value: _amount}(campaignId);
+    }
+
+    function withdrawFunds(uint256 _campaignIdSeed) public checkCampaignsCount {
+        uint256 campaignId = getCampaignIdFromSeed(_campaignIdSeed);
+        address owner = crowdFunding.getCampaignOwner(campaignId);
+        uint256 raised = crowdFunding.getCampaignRaised(campaignId);
+        uint256 goal = crowdFunding.getCampaignGoal(campaignId);
+        bool isWithdrawn = crowdFunding.getCampaignWithdrawnStatus(campaignId);
+
+        if (isWithdrawn) {
+            return;
+        }
+        if (raised < goal) {
+            return;
+        }
+
+        vm.warp(MAX_CAMPAIGN_DEADLINE + 1);
+        vm.prank(owner);
+        crowdFunding.withdrawFunds(campaignId);
     }
 
     // HELPER FUNCTIONS
 
     function generateCampaignOwners() internal pure returns (address[] memory) {
         address[] memory _campaignOwners = new address[](10);
-
-        for (uint160 i = 0; i < _campaignOwners.length; i++) {
-            _campaignOwners[i] = address(i + 1);
+        uint160 start = 100; // Start from 0x100 to avoid precompiles
+        uint160 end = 110;
+        for (uint160 i = start; i < end; i++) {
+            uint160 index = i - start;
+            _campaignOwners[index] = address(uint160(start + index));
         }
-
         return _campaignOwners;
     }
 
-    function getCamapaignOwnerFromSeed(uint256 _seed) internal view returns (address) {
+    function getCampaignOwnerFromSeed(uint256 _seed) internal view returns (address) {
         return campaignOwners[_seed % campaignOwners.length];
     }
 
-    function generateContibutors() internal returns (address[] memory) {
+    function generateContributors() internal returns (address[] memory) {
         address[] memory _contributors = new address[](100);
-
-        for (uint160 i = 0; i < _contributors.length; i++) {
-            _contributors[i] = address(i + 1);
-            vm.deal(_contributors[i], DEFAULT_CONTRIBUTOR_BALANCE);
+        uint160 start = 200;
+        uint160 end = 300;
+        for (uint160 i = start; i < end; i++) {
+            uint160 index = i - start;
+            _contributors[index] = address(uint160(start + index));
+            vm.deal(_contributors[index], DEFAULT_CONTRIBUTOR_BALANCE);
         }
-
         return _contributors;
     }
 

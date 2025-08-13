@@ -199,12 +199,23 @@ contract CrowdFunding {
         emit RefundIssued(campaign_id, msg.sender, refundAmount);
     }
 
+    // ##########################
+    // VIEW FUNCTIONS
+    // ##########################
+    function getCampaignOwner(uint256 campaign_id) public view campaignExists(campaign_id) returns (address) {
+        return s_campaigns[campaign_id].owner;
+    }
+
     function getCampaignWithdrawnStatus(uint256 campaign_id) public view campaignExists(campaign_id) returns (bool) {
         return s_campaigns[campaign_id].isWithdrawn;
     }
 
     function getCampaignRaised(uint256 campaign_id) public view campaignExists(campaign_id) returns (uint256) {
         return s_campaigns[campaign_id].raised;
+    }
+
+    function getCampaignGoal(uint256 campaign_id) public view campaignExists(campaign_id) returns (uint256) {
+        return s_campaigns[campaign_id].goal;
     }
 
     function getContribution(uint256 campaign_id, address contributer)
