@@ -18,6 +18,10 @@ contract Handler is Test {
     uint256 MAX_CAMPAIGN_DEADLINE;
     address[] campaignOwners;
     address[] contributors;
+    /**
+     * @dev track the campaigns that their deadline passed (Withdrawn or Refunded campaigns)
+     */
+    mapping(uint256 campaign_id => bool) finishedCampaigns;
 
     constructor(CrowdFunding _crowdFunding) {
         crowdFunding = _crowdFunding;
@@ -52,11 +56,10 @@ contract Handler is Test {
     {
         address contributor = getContributorFromSeed(_contributorSeed);
         uint256 campaignId = getCampaignIdFromSeed(_campaignIdSeed);
-        bool isWithdrawn = crowdFunding.getCampaignWithdrawnStatus(campaignId);
 
         _amount = bound(_amount, MIN_CONTRIBUTION_AMOUNT, MAX_CONTRIBUTION_AMOUNT);
 
-        if (isWithdrawn) {
+        if (finishedCampaigns[campaignId]) {
             return;
         }
 
@@ -82,17 +85,41 @@ contract Handler is Test {
             return;
         }
 
+        finishedCampaigns[campaignId] = true;
         vm.warp(MAX_CAMPAIGN_DEADLINE + 1);
         vm.prank(owner);
         crowdFunding.withdrawFunds(campaignId);
     }
 
-    // HELPER FUNCTIONS
+    function requestRefund(uint256 _contributorSeed, uint256 _campaignIdSeed) public checkCampaignsCount {
+        address contributor = getContributorFromSeed(_contributorSeed);
+        uint256 campaignId = getCampaignIdFromSeed(_campaignIdSeed);
+        uint256 raised = crowdFunding.getCampaignRaised(campaignId);
+        uint256 goal = crowdFunding.getCampaignGoal(campaignId);
 
+        if (raised >= goal) {
+            return;
+        }
+
+        uint256 refundAmount = crowdFunding.getContribution(campaignId, contributor);
+        if (refundAmount == 0) {
+            return;
+        }
+
+        finishedCampaigns[campaignId] = true;
+        vm.warp(MAX_CAMPAIGN_DEADLINE + 1);
+        vm.prank(contributor);
+        crowdFunding.requestRefund(campaignId);
+    }
+
+    // ##########################
+    // HELPER FUNCTIONS
+    // ##########################
     function generateCampaignOwners() internal pure returns (address[] memory) {
-        address[] memory _campaignOwners = new address[](10);
+        uint8 numberOfOwners = 5;
+        address[] memory _campaignOwners = new address[](numberOfOwners);
         uint160 start = 100; // Start from 0x100 to avoid precompiles
-        uint160 end = 110;
+        uint160 end = start + numberOfOwners;
         for (uint160 i = start; i < end; i++) {
             uint160 index = i - start;
             _campaignOwners[index] = address(uint160(start + index));
@@ -105,9 +132,10 @@ contract Handler is Test {
     }
 
     function generateContributors() internal returns (address[] memory) {
-        address[] memory _contributors = new address[](100);
-        uint160 start = 200;
-        uint160 end = 300;
+        uint8 numberOfContributors = 3;
+        address[] memory _contributors = new address[](numberOfContributors);
+        uint160 start = 120;
+        uint160 end = start + numberOfContributors;
         for (uint160 i = start; i < end; i++) {
             uint160 index = i - start;
             _contributors[index] = address(uint160(start + index));
