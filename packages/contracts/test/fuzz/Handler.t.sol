@@ -149,6 +149,7 @@ contract Handler is Test {
     }
 
     function getCampaignIdFromSeed(uint256 _seed) internal view returns (uint256) {
+        if (crowdFunding.campaignCount() == 0) revert("No Campaigns Created");
         return (_seed % crowdFunding.campaignCount());
     }
 }

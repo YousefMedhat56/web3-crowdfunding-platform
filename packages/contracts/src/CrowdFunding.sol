@@ -151,7 +151,7 @@ contract CrowdFunding {
     {
         Campaign storage campaign = s_campaigns[campaign_id];
 
-        // check if the contributer contributes for the first time to prevent double insertion
+        // check if the contributor contributes for the first time to prevent double insertion
         if (campaign.contributorsToAmount[msg.sender] == 0) {
             campaign.contributors.push(msg.sender);
         }
@@ -224,13 +224,13 @@ contract CrowdFunding {
         return s_campaigns[campaign_id].goal;
     }
 
-    function getContribution(uint256 campaign_id, address contributer)
+    function getContribution(uint256 campaign_id, address contributor)
         public
         view
         campaignExists(campaign_id)
         returns (uint256)
     {
-        return s_campaigns[campaign_id].contributorsToAmount[contributer];
+        return s_campaigns[campaign_id].contributorsToAmount[contributor];
     }
 
     function getCampaignContributors(uint256 campaign_id)
