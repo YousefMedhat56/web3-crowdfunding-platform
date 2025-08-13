@@ -13,7 +13,8 @@ contract CrowdFunding {
         uint256 raised;
         uint256 deadline;
         bool isWithdrawn;
-        mapping(address contributor => uint256 amount) contributors;
+        mapping(address contributor => uint256 amount) contributorsToAmount;
+        address[] contributors;
     }
 
     /**
@@ -149,7 +150,12 @@ contract CrowdFunding {
         moreThanZero(msg.value)
     {
         Campaign storage campaign = s_campaigns[campaign_id];
-        campaign.contributors[msg.sender] += msg.value;
+
+        // check if the contributer contributes for the first time to prevent double insertion
+        if (campaign.contributorsToAmount[msg.sender] == 0) {
+            campaign.contributors.push(msg.sender);
+        }
+        campaign.contributorsToAmount[msg.sender] += msg.value;
         campaign.raised += msg.value;
         emit ContributionReceived(campaign_id, msg.sender, msg.value);
     }
@@ -187,12 +193,12 @@ contract CrowdFunding {
      */
     function requestRefund(uint256 campaign_id) external campaignExists(campaign_id) afterDeadline(campaign_id) {
         Campaign storage campaign = s_campaigns[campaign_id];
-        uint256 refundAmount = campaign.contributors[msg.sender];
+        uint256 refundAmount = campaign.contributorsToAmount[msg.sender];
 
         if (campaign.raised >= campaign.goal) revert CrowdFunding__NoRefundCampaignGoalReached();
         if (refundAmount == 0) revert CrowdFunding__NoAvailableRefund();
 
-        campaign.contributors[msg.sender] = 0;
+        campaign.contributorsToAmount[msg.sender] = 0;
         campaign.raised -= refundAmount;
         (bool success,) = msg.sender.call{value: refundAmount}("");
         if (!success) revert CrowdFunding__RefundFailed();
@@ -224,6 +230,15 @@ contract CrowdFunding {
         campaignExists(campaign_id)
         returns (uint256)
     {
-        return s_campaigns[campaign_id].contributors[contributer];
+        return s_campaigns[campaign_id].contributorsToAmount[contributer];
+    }
+
+    function getCampaignContributors(uint256 campaign_id)
+        public
+        view
+        campaignExists(campaign_id)
+        returns (address[] memory)
+    {
+        return s_campaigns[campaign_id].contributors;
     }
 }

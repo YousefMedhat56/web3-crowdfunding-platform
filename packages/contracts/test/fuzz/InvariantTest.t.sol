@@ -34,4 +34,21 @@ contract InvariantTest is StdInvariant, Test {
         console.log("Total Raised", totalRaised);
         assertEq(address(crowdFunding).balance, totalRaised);
     }
+
+    /**
+     * @notice Checks that the raised funds of a campaign should equal the total of all contributions of the campaign
+     */
+    function invariant_CampaignRaisedShouldEqualTotalCampaignContributions() public view {
+        for (uint256 i = 0; i < crowdFunding.campaignCount(); i++) {
+            uint256 totalContributions = 0;
+            uint256 campaignRaised = crowdFunding.getCampaignRaised(i);
+            address[] memory contributors = crowdFunding.getCampaignContributors(i);
+            for (uint256 j = 0; j < contributors.length; j++) {
+                totalContributions += crowdFunding.getContribution(i, contributors[j]);
+            }
+            console.log("Campaign Raised", campaignRaised);
+            console.log("Total Contributions", totalContributions);
+            assertEq(campaignRaised, totalContributions);
+        }
+    }
 }
