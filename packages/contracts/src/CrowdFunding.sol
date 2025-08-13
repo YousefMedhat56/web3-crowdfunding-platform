@@ -193,6 +193,7 @@ contract CrowdFunding {
         if (refundAmount == 0) revert CrowdFunding__NoAvailableRefund();
 
         campaign.contributors[msg.sender] = 0;
+        campaign.raised -= refundAmount;
         (bool success,) = msg.sender.call{value: refundAmount}("");
         if (!success) revert CrowdFunding__RefundFailed();
         emit RefundIssued(campaign_id, msg.sender, refundAmount);
