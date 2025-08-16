@@ -1,0 +1,52 @@
+# To improve query performance, we strongly suggest adding indexes to any field that you plan to filter or sort by
+# Add the `@index` or `@index(unique: true)` annotation after any non-key field
+# https://academy.subquery.network/build/graphql.html#indexing-by-non-primary-key-field
+
+type Campaign @entity {
+  id: ID!                      
+  owner: String!
+  name: String!
+  description: String!
+  goal: BigInt!
+  raised: BigInt!
+  deadline: BigInt!
+  isWithdrawn: Boolean!
+  createdAtBlock: BigInt!
+  createdAtTimestamp: BigInt!
+  contributions: [Contribution!]! @derivedFrom(field: "campaign")
+  withdrawals: [Withdrawal!]! @derivedFrom(field: "campaign")
+  refunds: [Refund!]! @derivedFrom(field: "campaign")
+}
+
+type Contribution @entity {
+  id: ID!                      # txHash-logIndex
+  campaign: Campaign!
+  contributor: String!
+  amount: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+  logIndex: Int!
+}
+
+type Withdrawal @entity {
+  id: ID!                      # txHash-logIndex
+  campaign: Campaign!
+  owner: String!
+  amount: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+  logIndex: Int!
+}
+
+type Refund @entity {
+  id: ID!                      # txHash-logIndex
+  campaign: Campaign!
+  contributor: String!
+  amount: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+  logIndex: Int!
+}
