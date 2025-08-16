@@ -10,7 +10,8 @@
     "dev": "subql codegen && subql build && docker-compose pull && docker-compose up --remove-orphans",
     "prepack": "rm -rf dist && npm run build",
     "test": "subql build && subql-node-ethereum test",
-    "build:develop": "NODE_ENV=develop subql codegen && NODE_ENV=develop subql build"
+    "build:develop": "NODE_ENV=develop subql codegen && NODE_ENV=develop subql build",
+    "abi": "cd ../contracts && forge build && jq '.abi' ./out/CrowdFunding.sol/CrowdFunding.json > ../indexer/abis/CrowdFunding.abi.json"
   },
   "homepage": "https://github.com/subquery/ethereum-subql-starter",
   "repository": "github:subquery/ethereum-subql-starter",
