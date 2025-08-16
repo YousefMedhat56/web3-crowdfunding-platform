@@ -5,6 +5,9 @@ import assert from "assert";
 
 
 
+function generateId(txHash: string, logIndex: number): string {
+  return `${txHash}-${logIndex}`
+}
 export async function handleCampaignCreated(log: CampaignCreatedLog): Promise<void> {
   logger.info(`New CampaignCreated Event at block ${log.blockNumber}`);
 
@@ -37,7 +40,52 @@ export async function handleCampaignCreated(log: CampaignCreatedLog): Promise<vo
 }
 
 export async function handleContributionReceived(log: ContributionReceivedLog): Promise<void> {
-  // Place your code logic here
+
+  logger.info(`New ContributionReceived Event at block ${log.blockNumber}`);
+
+  assert(log.args, "No log.args");
+
+  const { campaign_id, contributor, amount } = log.args
+
+  const contributionId = generateId(log.transactionHash, log.logIndex);
+
+  // check if the contribution exists
+  const existing = await Contribution.get(contributionId);
+  if (existing) {
+    logger.warn(`Contribution ${contributionId} already exists, skipping update`);
+    return;
+  }
+
+  // check if the campagin exists
+  const campaignId = campaign_id.toString();
+  const campaign = await Campaign.get(campaignId);
+  if (!campaign) {
+    logger.error(`Campaign ${campaignId} not found for Contribution`);
+    return;
+  }
+
+  const contribution = Contribution.create({
+    id: contributionId,
+    campaignId: campaign_id.toString(),
+    contributor,
+    amount: BigInt(amount.toString()),
+    refunded: false,
+    timestamp: BigInt(log.block.timestamp),
+    blockNumber: BigInt(log.blockNumber),
+    logIndex: log.logIndex,
+    txHash: log.transactionHash,
+
+  });
+
+  await contribution.save();
+
+
+  // Update Campaign
+  campaign.raised = (campaign.raised || BigInt(0)) + BigInt(amount.toString());
+  if (!campaign.contributorAddresses!.includes(contributor.toString())) {
+    campaign.contributorAddresses!.push(contributor.toString());
+  }
+  await campaign.save();
 }
 
 export async function handleFundsWithdrawn(log: FundsWithdrawnLog): Promise<void> {
