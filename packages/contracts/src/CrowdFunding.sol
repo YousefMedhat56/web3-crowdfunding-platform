@@ -36,7 +36,7 @@ contract CrowdFunding {
     );
 
     event ContributionReceived(uint256 indexed campaign_id, address indexed contributor, uint256 amount);
-    event FundsWithdrawn(uint256 indexed campaign_id, address indexed owner, uint256 amount);
+    event FundsWithdrawn(uint256 indexed campaign_id, uint256 amount);
     event RefundIssued(uint256 indexed campaign_id, address indexed contributor, uint256 amount);
 
     /**
@@ -182,7 +182,7 @@ contract CrowdFunding {
         (bool success,) = campaign.owner.call{value: campaign.raised}("");
         if (!success) revert CrowdFunding__WithdrawFailed();
 
-        emit FundsWithdrawn(campaign_id, msg.sender, campaign.raised);
+        emit FundsWithdrawn(campaign_id, campaign.raised);
     }
 
     /**
