@@ -127,5 +127,72 @@ export async function handleFundsWithdrawn(log: FundsWithdrawnLog): Promise<void
 }
 
 export async function handleRefundIssued(log: RefundIssuedLog): Promise<void> {
-  // Place your code logic here
+  logger.info(`New RefundIssued Event at block ${log.blockNumber}`);
+
+  assert(log.args, "No log.args");
+
+  const refundId = generateId(log.transactionHash, log.logIndex);
+  const { campaign_id, contributor, amount } = log.args
+
+  // check if the refund exists
+  const existing = await Refund.get(refundId);
+  if (existing) {
+    logger.warn(`Refund ${refundId} already exists, skipping update`);
+    return;
+  }
+
+  // check if the campaign exists
+  const campaignId = campaign_id.toString();
+  const campaign = await Campaign.get(campaignId);
+
+  if (!campaign) {
+    logger.error(`Campaign ${campaignId} not found for Refund`);
+    return;
+  }
+
+  // check if the contributions exists
+  const contributions = await Contribution.getByFields(
+    [
+      ["campaignId", "=", campaignId],
+      ["contributor", "=", contributor],
+    ],
+    { limit: 100 }
+  );
+
+  if (!contributions || contributions.length == 0) {
+
+    logger.error(`No contributions found for campaign ${campaignId} and contributor ${contributor}`);
+    return;
+
+  }
+
+
+  const refund = Refund.create({
+    id: refundId,
+    campaignId,
+    contributor,
+    amount: BigInt(amount.toString()),
+    timestamp: BigInt(log.block.timestamp),
+    blockNumber: BigInt(log.blockNumber),
+    logIndex: log.logIndex,
+    txHash: log.transactionHash,
+  });
+
+  await refund.save();
+
+  // Update Campaign.raised
+  campaign.raised = (campaign.raised || BigInt(0)) - BigInt(amount.toString());
+
+  // Update Campaign.contributorAddresses
+  campaign.contributorAddresses = campaign.contributorAddresses!.filter((address) => address !== contributor.toString());
+
+  await campaign.save();
+
+
+  // Update Contribution.refunded
+  for (const contribution of contributions) {
+    contribution.refunded = true;
+    await contribution.save();
+  }
+
 }
