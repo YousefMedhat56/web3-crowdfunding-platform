@@ -3,7 +3,7 @@
 # https://academy.subquery.network/build/graphql.html#indexing-by-non-primary-key-field
 
 type Campaign @entity {
-  id: ID!                      
+  id: ID!
   owner: String!
   name: String!
   description: String!
@@ -13,9 +13,10 @@ type Campaign @entity {
   isWithdrawn: Boolean!
   createdAtBlock: BigInt!
   createdAtTimestamp: BigInt!
-  contributions: [Contribution!]! @derivedFrom(field: "campaign")
-  withdrawals: [Withdrawal!]! @derivedFrom(field: "campaign")
-  refunds: [Refund!]! @derivedFrom(field: "campaign")
+  contributorAddresses: [String] # List of contributor addresses
+  contributions: [Contribution] @derivedFrom(field: "campaign")
+  withdrawals: [Withdrawal] @derivedFrom(field: "campaign")
+  refunds: [Refund] @derivedFrom(field: "campaign")
 }
 
 type Contribution @entity {
@@ -23,6 +24,7 @@ type Contribution @entity {
   campaign: Campaign!
   contributor: String!
   amount: BigInt!
+  refunded: Boolean!           # Track if contribution was refunded
   blockNumber: BigInt!
   timestamp: BigInt!
   txHash: String!
