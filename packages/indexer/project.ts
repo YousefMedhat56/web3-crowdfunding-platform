@@ -71,7 +71,7 @@ const project: EthereumProject = {
           kind: EthereumHandlerKind.Event,
           filter: {
             topics: [
-              "FundsWithdrawn(uint256,address,uint256)"
+              "FundsWithdrawn(uint256,uint256)"
             ]
           }
         },

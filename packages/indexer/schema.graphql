@@ -34,7 +34,6 @@ type Contribution @entity {
 type Withdrawal @entity {
   id: ID!                      # txHash-logIndex
   campaign: Campaign!
-  owner: String!
   amount: BigInt!
   blockNumber: BigInt!
   timestamp: BigInt!
