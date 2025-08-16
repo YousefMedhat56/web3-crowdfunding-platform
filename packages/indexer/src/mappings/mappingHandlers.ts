@@ -45,9 +45,8 @@ export async function handleContributionReceived(log: ContributionReceivedLog): 
 
   assert(log.args, "No log.args");
 
-  const { campaign_id, contributor, amount } = log.args
-
   const contributionId = generateId(log.transactionHash, log.logIndex);
+  const { campaign_id, contributor, amount } = log.args
 
   // check if the contribution exists
   const existing = await Contribution.get(contributionId);
@@ -66,7 +65,7 @@ export async function handleContributionReceived(log: ContributionReceivedLog): 
 
   const contribution = Contribution.create({
     id: contributionId,
-    campaignId: campaign_id.toString(),
+    campaignId,
     contributor,
     amount: BigInt(amount.toString()),
     refunded: false,
@@ -89,7 +88,42 @@ export async function handleContributionReceived(log: ContributionReceivedLog): 
 }
 
 export async function handleFundsWithdrawn(log: FundsWithdrawnLog): Promise<void> {
-  // Place your code logic here
+  logger.info(`New FundsWithdrawn Event at block ${log.blockNumber}`);
+
+  assert(log.args, "No log.args");
+
+  const withdrawlId = generateId(log.transactionHash, log.logIndex);
+  const { campaign_id, amount } = log.args
+
+  // check if the withdrawl exists
+  const existing = await Withdrawal.get(withdrawlId);
+  if (existing) {
+    logger.warn(`Withdrawal ${withdrawlId} already exists, skipping update`);
+    return;
+  }
+
+  // check if the campaign exists
+  const campaignId = campaign_id.toString();
+  const campaign = await Campaign.get(campaignId);
+  if (!campaign) {
+    logger.error(`Campaign ${campaignId} not found for Withdrawl`);
+    return;
+  }
+
+  const withdrawl = Withdrawal.create({
+    id: withdrawlId,
+    campaignId,
+    amount: BigInt(amount.toString()),
+    timestamp: BigInt(log.block.timestamp),
+    blockNumber: BigInt(log.blockNumber),
+    logIndex: log.logIndex,
+    txHash: log.transactionHash,
+  });
+
+  await withdrawl.save();
+
+  campaign.isWithdrawn = true;
+  await campaign.save();
 }
 
 export async function handleRefundIssued(log: RefundIssuedLog): Promise<void> {
