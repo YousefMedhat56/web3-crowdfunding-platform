@@ -10,7 +10,7 @@ import path from 'path';
 const mode = process.env.NODE_ENV || 'production';
 
 // Load the appropriate .env file
-const dotenvPath = path.resolve(__dirname, `.env${mode === 'production' ? ".production" : ".develop"}`);
+const dotenvPath = path.resolve(__dirname, `.env.${mode}`);
 dotenv.config({ path: dotenvPath, quiet: true });
 
 // Can expand the Datasource processor types via the generic param
